@@ -1,16 +1,32 @@
-use std::{env, fs::File, io::{BufRead, BufReader}, path::Path};
+use std::{
+    env,
+    fs::File,
+    io::{BufRead, BufReader},
+    path::Path,
+};
 
-fn print_file_content(path: &str) {
-    let file = File::open(path)
-        .expect(format!("File '{}' doesn't exist", path).as_str());
+enum FileError {
+    FileDoesntExit,
+    FileReaderError,
+}
+
+fn print_file_content(path: &str) -> Result<(), FileError> {
+    let file = match File::open(path) {
+        Ok(f) => f,
+        Err(_) => return Err(FileError::FileDoesntExit),
+    };
 
     let file_reader = BufReader::new(file);
 
     for line in file_reader.lines() {
-        let line_string = line
-            .expect(format!("An error occured when reading {}", path).as_str());
+        let line_string = match line {
+            Ok(s) => s,
+            Err(_) => return Err(FileError::FileReaderError),
+        };
         println!("{}", line_string);
     }
+
+    Ok(())
 }
 
 fn main() {
@@ -18,11 +34,22 @@ fn main() {
 
     for arg in args.iter().skip(1) {
         if !Path::new(arg).exists() {
-            println!("File '{}' doesn't exist", arg);
+            println!("File {} doesn't exist", arg);
+            return;
         }
     }
 
-    for arg in args.iter().skip(1) {
-        print_file_content(arg);
+    for path in args.iter().skip(1) {
+        match print_file_content(path) {
+            Err(FileError::FileDoesntExit) => {
+                println!("File {} doesn't exist", path);
+                return;
+            }
+            Err(FileError::FileReaderError) => {
+                println!("Error when reading {}", path);
+                return;
+            }
+            _ => (),
+        };
     }
 }
